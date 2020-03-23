@@ -1,51 +1,75 @@
-class EmailsController < ApplicationController
-  before_action :set_email, only: [:show, :update, :destroy]
+# frozen_string_literal: true
 
-  # GET /emails
+class EmailsController < ApplicationController
+  FEATURE_CHANNEL = 'feature_channel'
+
+  before_action :set_email, only: %i[show update destroy]
+
   def index
     @emails = Email.all
 
     render json: @emails
   end
 
-  # GET /emails/1
   def show
     render json: @email
   end
 
-  # POST /emails
   def create
     @email = Email.new(email_params)
 
     if @email.save
+      redis_instance.publish(
+        FEATURE_CHANNEL,
+        service: 'emails',
+        feature: 'emails',
+        id: @email.id.to_s,
+        type: 'CREATE'
+      )
       render json: @email, status: :created, location: @email
     else
       render json: @email.errors, status: :unprocessable_entity
     end
   end
 
-  # PATCH/PUT /emails/1
   def update
     if @email.update(email_params)
+      redis_instance.publish(
+        FEATURE_CHANNEL,
+        service: 'emails',
+        feature: 'emails',
+        id: @email.id.to_s,
+        type: 'UPDATE'
+      )
       render json: @email
     else
       render json: @email.errors, status: :unprocessable_entity
     end
   end
 
-  # DELETE /emails/1
   def destroy
-    @email.destroy
+    if @email.destroy
+      redis_instance.publish(
+        FEATURE_CHANNEL,
+        service: 'emails',
+        feature: 'emails',
+        id: @email.id.to_s,
+        type: 'DELETE'
+      )
+    end
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
-    def set_email
-      @email = Email.find(params[:id])
-    end
 
-    # Only allow a trusted parameter "white list" through.
-    def email_params
-      params.require(:email).permit(:name, :subject, :body, :asset_id)
-    end
+  def redis_instance
+    @redis ||= Redis.new
+  end
+
+  def set_email
+    @email = Email.find(params[:id])
+  end
+
+  def email_params
+    params.require(:email).permit(:name, :subject, :body, :asset_id)
+  end
 end

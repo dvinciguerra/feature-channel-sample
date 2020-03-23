@@ -1,51 +1,76 @@
-class AssetsController < ApplicationController
-  before_action :set_asset, only: [:show, :update, :destroy]
+# frozen_string_literal: true
 
-  # GET /assets
+class AssetsController < ApplicationController
+  FEATURE_CHANNEL = 'feature_channel'
+
+  before_action :set_asset, only: %i[show update destroy]
+
   def index
     @assets = Asset.all
 
     render json: @assets
   end
 
-  # GET /assets/1
   def show
     render json: @asset
   end
 
-  # POST /assets
   def create
     @asset = Asset.new(asset_params)
 
     if @asset.save
+      redis_instance.publish(
+        FEATURE_CHANNEL,
+        service: 'assets',
+        feature: 'assets',
+        id: @asset.id.to_s,
+        type: 'CREATE'
+      )
       render json: @asset, status: :created, location: @asset
     else
       render json: @asset.errors, status: :unprocessable_entity
     end
   end
 
-  # PATCH/PUT /assets/1
   def update
     if @asset.update(asset_params)
+      redis_instance.publish(
+        FEATURE_CHANNEL,
+        service: 'assets',
+        feature: 'assets',
+        id: @asset.id.to_s,
+        type: 'UPDATE'
+      )
       render json: @asset
     else
       render json: @asset.errors, status: :unprocessable_entity
     end
   end
 
-  # DELETE /assets/1
   def destroy
-    @asset.destroy
+    if @asset.destroy
+      redis_instance.publish(
+        FEATURE_CHANNEL,
+        service: 'assets',
+        feature: 'assets',
+        id: @asset.id.to_s,
+        type: 'DELETE'
+      )
+    end
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
-    def set_asset
-      @asset = Asset.find(params[:id])
-    end
 
-    # Only allow a trusted parameter "white list" through.
-    def asset_params
-      params.require(:asset).permit(:name, :description, :bucket_url)
-    end
+  def redis_instance
+    @redis ||= Redis.new
+  end
+
+  def set_asset
+    @asset = Asset.find(params[:id])
+  end
+
+  def asset_params
+    pp params
+    params.require(:asset).permit(:name, :description, :bucket_url)
+  end
 end
