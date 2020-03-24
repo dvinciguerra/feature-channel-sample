@@ -24,11 +24,9 @@ ActiveRecord::Schema.define(version: 2020_03_21_110359) do
     t.string "name"
     t.string "subject"
     t.text "body"
-    t.integer "asset_id", null: false
+    t.integer "asset_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
-    t.index ["asset_id"], name: "index_emails_on_asset_id"
   end
 
-  add_foreign_key "emails", "assets"
 end

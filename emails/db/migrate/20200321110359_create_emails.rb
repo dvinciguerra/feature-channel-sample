@@ -4,7 +4,7 @@ class CreateEmails < ActiveRecord::Migration[6.0]
       t.string :name
       t.string :subject
       t.text :body
-      t.references :asset, null: false, foreign_key: true
+      t.integer :asset_id, null: true
 
       t.timestamps
     end

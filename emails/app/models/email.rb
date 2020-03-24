@@ -1,3 +1,3 @@
 class Email < ApplicationRecord
-  belongs_to :asset
+  has_one :asset
 end
