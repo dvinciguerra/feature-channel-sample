@@ -21,10 +21,12 @@ class AssetsController < ApplicationController
     if @asset.save
       redis_instance.publish(
         FEATURE_CHANNEL,
-        service: 'assets',
-        feature: 'assets',
-        id: @asset.id.to_s,
-        type: 'CREATE'
+        {
+          service: 'assets',
+          feature: 'assets',
+          id: @asset.id.to_s,
+          type: 'CREATE'
+        }.to_msgpack
       )
       render json: @asset, status: :created, location: @asset
     else
@@ -36,10 +38,12 @@ class AssetsController < ApplicationController
     if @asset.update(asset_params)
       redis_instance.publish(
         FEATURE_CHANNEL,
-        service: 'assets',
-        feature: 'assets',
-        id: @asset.id.to_s,
-        type: 'UPDATE'
+        {
+          service: 'assets',
+          feature: 'assets',
+          id: @asset.id.to_s,
+          type: 'UPDATE'
+        }.to_msgpack
       )
       render json: @asset
     else
@@ -51,10 +55,12 @@ class AssetsController < ApplicationController
     if @asset.destroy
       redis_instance.publish(
         FEATURE_CHANNEL,
-        service: 'assets',
-        feature: 'assets',
-        id: @asset.id.to_s,
-        type: 'DELETE'
+        {
+          service: 'assets',
+          feature: 'assets',
+          id: @asset.id.to_s,
+          type: 'DELETE'
+        }.to_msgpack
       )
     end
   end

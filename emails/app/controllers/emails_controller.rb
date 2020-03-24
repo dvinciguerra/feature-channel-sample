@@ -21,10 +21,12 @@ class EmailsController < ApplicationController
     if @email.save
       redis_instance.publish(
         FEATURE_CHANNEL,
-        service: 'emails',
-        feature: 'emails',
-        id: @email.id.to_s,
-        type: 'CREATE'
+        {
+          service: 'emails',
+          feature: 'emails',
+          id: @email.id.to_s,
+          type: 'CREATE'
+        }.to_msgpack
       )
       render json: @email, status: :created, location: @email
     else
@@ -36,10 +38,12 @@ class EmailsController < ApplicationController
     if @email.update(email_params)
       redis_instance.publish(
         FEATURE_CHANNEL,
-        service: 'emails',
-        feature: 'emails',
-        id: @email.id.to_s,
-        type: 'UPDATE'
+        {
+          service: 'emails',
+          feature: 'emails',
+          id: @email.id.to_s,
+          type: 'UPDATE'
+        }.to_msgpack
       )
       render json: @email
     else
@@ -51,10 +55,12 @@ class EmailsController < ApplicationController
     if @email.destroy
       redis_instance.publish(
         FEATURE_CHANNEL,
-        service: 'emails',
-        feature: 'emails',
-        id: @email.id.to_s,
-        type: 'DELETE'
+        {
+          service: 'emails',
+          feature: 'emails',
+          id: @email.id.to_s,
+          type: 'DELETE'
+        }.to_msgpack
       )
     end
   end
