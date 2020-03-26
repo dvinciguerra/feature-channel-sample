@@ -4,25 +4,14 @@ require 'open-uri'
 
 $stdout.sync = true
 
-FEATURE_CHANNEL = 'feature_channel'
-
-SERVICES = YAML.safe_load(<<-YAML)
-  emails: http://127.0.0.1:3002
-YAML
-
-MODELS = YAML.safe_load(<<-YAML)
-  emails: Email
-YAML
-
-def redis_instance
-  @redis_instance ||= Redis.new
-end
-
-Rails.logger = Logger.new(STDOUT)
-Rails.logger.level = :info
-
 module FeatureChannel
-  TOPIC = 'feature_channel'
+  class << self
+    attr_accessor :topic, :models, :services
+
+    def configure
+      yield(self)
+    end
+  end
 
   module Subscriber
     class << self
@@ -112,13 +101,38 @@ module FeatureChannel
   end
 end
 
+FEATURE_CHANNEL = 'feature_channel'
+
+SERVICES = YAML.safe_load(<<-YAML)
+  emails: http://127.0.0.1:3002
+YAML
+
+MODELS = YAML.safe_load(<<-YAML)
+  emails: Email
+YAML
+
+def redis_instance
+  @redis_instance ||= Redis.new
+end
+
+Rails.logger = Logger.new(STDOUT)
+Rails.logger.level = :info
+
+FeatureChannel.configure do |config|
+  config.topic = FEATURE_CHANNEL
+
+  config.models = MODELS
+
+  config.services = SERVICES
+end
+
 namespace :feature_channel do
   desc 'feature channel taskes'
 
   task subscribe: :environment do
     logger = Rails.logger
 
-    redis_instance.subscribe(FeatureChannel::TOPIC) do |on|
+    redis_instance.subscribe(FeatureChannel.topic) do |on|
       on.message do |channel, message|
         FeatureChannel::Subscriber.process(channel, message)
       end
