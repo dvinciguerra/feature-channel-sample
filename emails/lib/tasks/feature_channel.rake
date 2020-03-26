@@ -6,6 +6,14 @@ $stdout.sync = true
 
 FEATURE_CHANNEL = 'feature_channel'
 
+SERVICES = YAML.load(<<-YAML)
+  assets: http://127.0.0.1:3003
+YAML
+
+MODELS = YAML.load(<<-YAML)
+  assets: Asset
+YAML
+
 def redis_instance
   @redis_instance ||= Redis.new
 end
@@ -17,51 +25,46 @@ namespace :feature_channel do
   desc 'feature channel taskes'
 
   task subscribe: :environment do
-    services = {
-      "assets" => "http://127.0.0.1:3003",
-    }
-
-    model_relations = {
-      "assets" => Asset
-    }
-
     logger = Rails.logger
     redis_instance.subscribe(FEATURE_CHANNEL) do |on|
       on.message do |channel, message|
-        payload = MessagePack.unpack(message)
+        message_payload = MessagePack.unpack(message)
 
-        puts payload
-        logger.debug(payload)
+        logger.debug(message_payload)
 
-        service, feature, id, type = payload.values_at("service", "feature", "id", "type")
-        model_klass = model_relations[feature]
+        service, feature, id, type = message_payload.values_at("service", "feature", "id", "type")
+        model_klass = MODELS[feature] ? Object.const_get(MODELS[feature]) : nil
 
         # getting feature data
+        accept_message = !!model_klass
         need_service_fetch = %W(CREATE UPDATE).include? type
 
-        # make the right operation
-        if need_service_fetch
-          response = open("#{services[service]}/#{feature}/#{id}")
+        if accept_message
+          # make the right operation
+          if need_service_fetch
+            logger.info("Getting entity info from \"#{SERVICES[service]}/#{feature}/#{id}\"...")
+            response = open("#{SERVICES[service]}/#{feature}/#{id}")
+            entity_params = JSON.parse(response.read)
 
-          feature_entity = JSON.parse(response.read)
-          name, description, bucket_url = feature_entity.values_at("name", "description", "bucket_url")
+            entity_attributes = model_klass.column_names
 
-          # create operation
-          if type == "CREATE"
-            model_klass.create(id: id, name: name, description: description, bucket_url: bucket_url)
+            # create operation
+            if type == "CREATE"
+              model_klass.create(entity_params.slice(*entity_attributes))
+            end
+
+            # update operation
+            if type == "UPDATE"
+              model = model_klass.find(id)
+              model.update(entity_params.slice(*entity_attributes))
+            end
           end
 
-          # update operation
-          if type == "UPDATE"
+          # delete operation
+          if type == "DELETE"
             model = model_klass.find(id)
-            model.update(name: name, description: description, bucket_url: bucket_url) if model
+            model.delete if model
           end
-        end
-
-        # delete operation
-        if type == "DELETE"
-          model = model_klass.find(id)
-          model.delete if model
         end
       rescue StandardError => err
         pp err
