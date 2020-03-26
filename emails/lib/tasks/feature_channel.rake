@@ -21,53 +21,106 @@ end
 Rails.logger = Logger.new(STDOUT)
 Rails.logger.level = :info
 
+module FeatureChannel
+  TOPIC = 'feature_channel'
+
+  module Subscriber
+    class << self
+      def process(_topic, message)
+        payload = message_decode(message)
+        model = feature_model(payload['feature'])
+
+        return unless accept_message? model
+
+        processor =
+          Subscriber::MessageProcessor.new(message: payload, model: model)
+
+        processor.run!
+      end
+
+      private
+
+      def accept_message?(model_klass)
+        !!model_klass
+      end
+
+      def feature_model(feature)
+        MODELS[feature] ? Object.const_get(MODELS[feature]) : nil
+      end
+
+      def message_decode(message)
+        MessagePack.unpack(message)
+      end
+    end
+
+    class MessageProcessor
+      OPERATIONS = {
+        'CREATE' => :create_entity,
+        'UPDATE' => :update_entity,
+        'DELETE' => :delete_entity
+      }.freeze
+
+      def initialize(message:, model:)
+        @model = model
+        @message = message
+      end
+
+      def run!
+        method(operation_callback).call(model: @model, params: entity_params)
+      end
+
+      private
+
+      def entity_params
+        return { 'id' => @message['id'] } unless need_service_fetch?
+
+        fetch_entity(entity_url)
+      end
+
+      def entity_url
+        id, service, feature = @message.values_at('id', 'service', 'feature')
+        "#{SERVICES[service]}/#{feature}/#{id}"
+      end
+
+      def fetch_entity(url)
+        response = open(url)
+        JSON.parse(response.read)
+      end
+
+      def need_service_fetch?
+        %w[CREATE UPDATE].include? @message['type']
+      end
+
+      def operation_callback
+        OPERATIONS[@message['type']]
+      end
+
+      def create_entity(model:, params:)
+        model.create(params.slice(*model.column_names))
+      end
+
+      def update_entity(model:, params:)
+        entity = model.find(params['id'])
+        entity&.update(params.slice(*model.column_names))
+      end
+
+      def delete_entity(model:, params:)
+        entity = model.find(params['id'])
+        entity&.delete
+      end
+    end
+  end
+end
+
 namespace :feature_channel do
   desc 'feature channel taskes'
 
   task subscribe: :environment do
     logger = Rails.logger
-    redis_instance.subscribe(FEATURE_CHANNEL) do |on|
+
+    redis_instance.subscribe(FeatureChannel::TOPIC) do |on|
       on.message do |channel, message|
-        message_payload = MessagePack.unpack(message)
-
-        logger.debug(message_payload)
-
-        service, feature, id, type = message_payload.values_at("service", "feature", "id", "type")
-        model_klass = MODELS[feature] ? Object.const_get(MODELS[feature]) : nil
-
-        # getting feature data
-        accept_message = !!model_klass
-        need_service_fetch = %W(CREATE UPDATE).include? type
-
-        if accept_message
-          # make the right operation
-          if need_service_fetch
-            logger.info("Getting entity info from \"#{SERVICES[service]}/#{feature}/#{id}\"...")
-            response = open("#{SERVICES[service]}/#{feature}/#{id}")
-            entity_params = JSON.parse(response.read)
-
-            entity_attributes = model_klass.column_names
-
-            # create operation
-            if type == "CREATE"
-              model_klass.create(entity_params.slice(*entity_attributes))
-            end
-
-            # update operation
-            if type == "UPDATE"
-              model = model_klass.find(id)
-              model.update(entity_params.slice(*entity_attributes))
-            end
-          end
-
-          # delete operation
-          if type == "DELETE"
-            model = model_klass.find(id)
-            model.delete if model
-          end
-        end
-      rescue StandardError => err
-        pp err
+        FeatureChannel::Subscriber.process(channel, message)
       end
     end
   end
