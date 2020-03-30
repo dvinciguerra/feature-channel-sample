@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class EmailsController < ApplicationController
-  FEATURE_CHANNEL = 'feature_channel'
-
   before_action :set_email, only: %i[show update destroy]
 
   def index
@@ -19,15 +17,7 @@ class EmailsController < ApplicationController
     @email = Email.new(email_params)
 
     if @email.save
-      redis_instance.publish(
-        FEATURE_CHANNEL,
-        {
-          service: 'emails',
-          feature: 'emails',
-          id: @email.id.to_s,
-          type: 'CREATE'
-        }.to_msgpack
-      )
+      publisher(feature: 'emails', id: @email.id.to_s, type: 'CREATE')
       render json: @email, status: :created, location: @email
     else
       render json: @email.errors, status: :unprocessable_entity
@@ -36,15 +26,7 @@ class EmailsController < ApplicationController
 
   def update
     if @email.update(email_params)
-      redis_instance.publish(
-        FEATURE_CHANNEL,
-        {
-          service: 'emails',
-          feature: 'emails',
-          id: @email.id.to_s,
-          type: 'UPDATE'
-        }.to_msgpack
-      )
+      publisher(feature: 'emails', id: @email.id.to_s, type: 'UPDATE')
       render json: @email
     else
       render json: @email.errors, status: :unprocessable_entity
@@ -53,15 +35,7 @@ class EmailsController < ApplicationController
 
   def destroy
     if @email.destroy
-      redis_instance.publish(
-        FEATURE_CHANNEL,
-        {
-          service: 'emails',
-          feature: 'emails',
-          id: @email.id.to_s,
-          type: 'DELETE'
-        }.to_msgpack
-      )
+      publisher(feature: 'emails', id: @email.id.to_s, type: 'DELETE')
     end
   end
 
@@ -77,5 +51,9 @@ class EmailsController < ApplicationController
 
   def email_params
     params.require(:email).permit(:name, :subject, :body, :asset_id)
+  end
+
+  def publisher(*args)
+    FeatureChannel::Publisher.send_message(**args)
   end
 end
