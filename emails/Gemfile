@@ -14,6 +14,8 @@ gem 'bootsnap', '>= 1.4.2', require: false
 
 gem 'rack-cors'
 
+gem 'feature_channel', path: '../feature_channel'
+
 group :development, :test do
   gem 'byebug', platforms: %i[mri mingw x64_mingw]
 end

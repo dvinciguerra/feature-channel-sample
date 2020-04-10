@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../lib/feature_channel.rb'
-
 feature_channel_config =
   YAML.load_file(Rails.root.join('config', 'feature_channel.yml'))
 
