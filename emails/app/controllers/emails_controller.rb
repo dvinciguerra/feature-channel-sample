@@ -17,7 +17,6 @@ class EmailsController < ApplicationController
     @email = Email.new(email_params)
 
     if @email.save
-      publisher(feature: 'emails', id: @email.id.to_s, type: 'CREATE')
       render json: @email, status: :created, location: @email
     else
       render json: @email.errors, status: :unprocessable_entity
@@ -26,7 +25,6 @@ class EmailsController < ApplicationController
 
   def update
     if @email.update(email_params)
-      publisher(feature: 'emails', id: @email.id.to_s, type: 'UPDATE')
       render json: @email
     else
       render json: @email.errors, status: :unprocessable_entity
@@ -34,16 +32,10 @@ class EmailsController < ApplicationController
   end
 
   def destroy
-    if @email.destroy
-      publisher(feature: 'emails', id: @email.id.to_s, type: 'DELETE')
-    end
+    @email.destroy
   end
 
   private
-
-  def redis_instance
-    @redis ||= Redis.new
-  end
 
   def set_email
     @email = Email.find(params[:id])
@@ -51,9 +43,5 @@ class EmailsController < ApplicationController
 
   def email_params
     params.require(:email).permit(:name, :subject, :body, :asset_id)
-  end
-
-  def publisher(*args)
-    FeatureChannel::Publisher.send_message(**args)
   end
 end
