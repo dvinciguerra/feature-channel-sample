@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class AssetsController < ApplicationController
-  FEATURE_CHANNEL = 'feature_channel'
-
   before_action :set_asset, only: %i[show update destroy]
 
   def index
@@ -19,15 +17,6 @@ class AssetsController < ApplicationController
     @asset = Asset.new(asset_params)
 
     if @asset.save
-      redis_instance.publish(
-        FEATURE_CHANNEL,
-        {
-          service: 'assets',
-          feature: 'assets',
-          id: @asset.id.to_s,
-          type: 'CREATE'
-        }.to_msgpack
-      )
       render json: @asset, status: :created, location: @asset
     else
       render json: @asset.errors, status: :unprocessable_entity
@@ -36,15 +25,6 @@ class AssetsController < ApplicationController
 
   def update
     if @asset.update(asset_params)
-      redis_instance.publish(
-        FEATURE_CHANNEL,
-        {
-          service: 'assets',
-          feature: 'assets',
-          id: @asset.id.to_s,
-          type: 'UPDATE'
-        }.to_msgpack
-      )
       render json: @asset
     else
       render json: @asset.errors, status: :unprocessable_entity
@@ -52,24 +32,10 @@ class AssetsController < ApplicationController
   end
 
   def destroy
-    if @asset.destroy
-      redis_instance.publish(
-        FEATURE_CHANNEL,
-        {
-          service: 'assets',
-          feature: 'assets',
-          id: @asset.id.to_s,
-          type: 'DELETE'
-        }.to_msgpack
-      )
-    end
+    @asset.destroy
   end
 
   private
-
-  def redis_instance
-    @redis ||= Redis.new
-  end
 
   def set_asset
     @asset = Asset.find(params[:id])
