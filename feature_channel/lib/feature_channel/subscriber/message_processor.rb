@@ -21,23 +21,7 @@ module FeatureChannel
       private
 
       def entity_params
-        return { 'id' => @message['id'] } unless need_service_fetch?
-
-        fetch_entity(entity_url)
-      end
-
-      def entity_url
-        id, service, feature = @message.values_at('id', 'service', 'feature')
-        "#{FeatureChannel.services[service]}/#{feature}/#{id}"
-      end
-
-      def fetch_entity(url)
-        response = open(url)
-        JSON.parse(response.read)
-      end
-
-      def need_service_fetch?
-        %w[CREATE UPDATE].include? @message['type']
+        @message['payload'].merge('id' => @message['id'])
       end
 
       def operation_callback
