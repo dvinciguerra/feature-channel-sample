@@ -8,7 +8,8 @@ module FeatureChannel
   class Error < StandardError; end
 
   class << self
-    attr_accessor :topic, :features, :services, :service_name, :delivery_strategy
+    attr_accessor :topic, :features, :services, :service_name,
+                  :delivery_strategy
 
     def configure
       yield(self)

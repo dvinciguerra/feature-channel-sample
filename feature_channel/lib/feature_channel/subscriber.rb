@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'msgpack'
 require 'feature_channel/subscriber/message_processor'
 
 module FeatureChannel
