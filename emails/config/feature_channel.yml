@@ -2,8 +2,5 @@ topic: feature_channel
 
 name: emails
 
-services:
-  assets: http://127.0.0.1:3003
-
 features:
-  assets: Asset
+  asset: Asset

@@ -2,8 +2,5 @@ topic: feature_channel
 
 name: platform
 
-services:
-  emails: http://127.0.0.1:3002
-
 features:
-  emails: Email
+  email: Email
