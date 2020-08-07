@@ -15,7 +15,7 @@ gem 'bootsnap', '>= 1.4.2', require: false
 gem 'rack-cors'
 
 gem 'feature_channel', path: '../feature_channel'
-gem 'google-cloud-pubsub', '~> 1.6'
+gem 'google-cloud-pubsub', '~> 2.0'
 
 group :development, :test do
   gem 'byebug', platforms: %i[mri mingw x64_mingw]
